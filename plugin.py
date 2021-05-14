@@ -1,24 +1,28 @@
 import sublime
 import sublime_plugin
 from string import Template
+import datetime
 
-def gen_order(expr):
+def gen_order(expr, add_cancel=False):
     exp = [i.upper() for i in expr.split(" ") if i.strip()]
     ticker=exp[0]
     size=exp[1]
 
+    time=""
+    if add_cancel:
+        cancel_at=(datetime.date.today() + datetime.timedelta(days=1)).strftime("%m/%d/%y") + " 6:40:00"
+        time="CANCEL AT "+cancel_at
+
     if int(size) < 0:
         t=Template("SELL $count $ticker MKT WHEN $ticker STUDY 'open <= If(open[1]>close[1],close[1],open[1]) and close < low[1];D' IS TRUE")
     else:
-        t=Template("BUY $count $ticker MKT WHEN $ticker STUDY 'open >= If(open[1]>close[1],open[1],close[1]);D' IS TRUE")
-    return t.substitute(ticker=ticker, count=size)
+        t=Template("BUY $count $ticker MKT $time WHEN $ticker STUDY 'open >= If(open[1]>close[1],open[1],close[1]);D' IS TRUE")
+    return t.substitute(ticker=ticker, count=size, time=time)
 
 '''
 order input, samples:
-`DE 1 o`, long position, use last day's open as wick base
-`DE 1 c`, long position, use last day's close as wick base
-`DE -1 o`, short position, use last day's open as wick base
-`DE -1 c`, short position, use last day's close as wick base
+`DE 1`, long position, use last day's open as wick base
+`DE -1`, short position, use last day's open as wick base
 '''
 class MyOrderInput(sublime_plugin.TextInputHandler):
     def __init__(self, view):
@@ -45,10 +49,16 @@ class MyOrderInput(sublime_plugin.TextInputHandler):
             count = len(s)
             if count > 2:
                 count = 2
-            results = [repr(gen_order(expr)) for i in range(count)]
+            # results = [repr(gen_order(expr)) for i in range(count)]
+            results=[]
+            for i in range(count):
+                si = s[i]
+                data = v.substr(si).split("\n")[0]
+                t = data if data else expr
+                results.append(gen_order(t))
             if count != len(s):
                 results.append("...")
-            return ", ".join(results)
+            return "\n".join(results)
         except Exception:
             return ""
 
@@ -67,3 +77,20 @@ class MyOrderCommand(sublime_plugin.TextCommand):
 
     def input(self, args):
         return MyOrderInput(self.view)
+
+'''
+Plugin to generate thinkorswim order template from current line, same as above but without input handler
+'''
+class AutoOrderCommand(sublime_plugin.TextCommand):
+    def run(self,edit):
+        s = self.view.sel()
+        for i in range(len(s)):            
+            lr = self.view.line(s[i])
+            data = self.view.substr(lr)
+            exp = [i for i in data.split(" ") if i.strip()]
+            
+            if len(exp) == 2:
+                content=gen_order(data)
+                self.view.replace(edit, lr, content)
+                sublime.set_clipboard(content)
+                self.view.set_status("tos","Order copied to clipboard!")
