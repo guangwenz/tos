@@ -23,7 +23,8 @@ def gen_order(expr, add_cancel=False):
         time="CANCEL AT "+cancel_at
 
     if int(size) < 0:
-        t=Template("SELL $count $ticker MKT WHEN $ticker STUDY 'close < (low[1] * 0.995);D' IS TRUE")
+        # if yesterday is an inside day, use the day before yesterday, if the day before yesterday is an inside day as well, use the previous day(low[3]), and we stop there.
+        t=Template("SELL $count $ticker MKT GTC WHEN $ticker STUDY 'close < (if(low[1]>=low[2] and high[1]<=high[2], if(low[2] >=low[3] and high[2]<=high[3], low[3], low[2]), low[1]) * 0.995);D' IS TRUE")
     else:
         t=Template("BUY $count $ticker MKT $time WHEN $ticker STUDY 'open >= If(open[1]>close[1],open[1],close[1]);D' IS TRUE")
     return t.substitute(ticker=ticker, count=size, time=time)
