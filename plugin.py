@@ -10,11 +10,20 @@ def gen_order(expr, add_cancel=False):
 
     time=""
     if add_cancel:
-        cancel_at=(datetime.date.today() + datetime.timedelta(days=1)).strftime("%m/%d/%y") + " 6:40:00"
+        next_day = datetime.date.today()
+        wd=next_day.isoweekday()
+        if wd == 5:
+            delta = 3
+        elif wd == 6:
+            delta = 2
+        else:
+            delta = 1
+        next_day += datetime.timedelta(days=delta)
+        cancel_at=next_day.strftime("%m/%d/%y") + " 06:40:00"
         time="CANCEL AT "+cancel_at
 
     if int(size) < 0:
-        t=Template("SELL $count $ticker MKT WHEN $ticker STUDY 'open <= If(open[1]>close[1],close[1],open[1]) and close < low[1];D' IS TRUE")
+        t=Template("SELL $count $ticker MKT WHEN $ticker STUDY 'close < (low[1] * 0.995);D' IS TRUE")
     else:
         t=Template("BUY $count $ticker MKT $time WHEN $ticker STUDY 'open >= If(open[1]>close[1],open[1],close[1]);D' IS TRUE")
     return t.substitute(ticker=ticker, count=size, time=time)
@@ -82,15 +91,15 @@ class MyOrderCommand(sublime_plugin.TextCommand):
 Plugin to generate thinkorswim order template from current line, same as above but without input handler
 '''
 class AutoOrderCommand(sublime_plugin.TextCommand):
-    def run(self,edit):
+    def run(self,edit, add_cancel=True):
         s = self.view.sel()
         for i in range(len(s)):            
             lr = self.view.line(s[i])
             data = self.view.substr(lr)
             exp = [i for i in data.split(" ") if i.strip()]
-            
+
             if len(exp) == 2:
-                content=gen_order(data)
+                content=gen_order(data,add_cancel)
                 self.view.replace(edit, lr, content)
                 sublime.set_clipboard(content)
                 self.view.set_status("tos","Order copied to clipboard!")

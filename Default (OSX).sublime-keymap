@@ -1,4 +1,9 @@
 [
-    {"keys":["super+shift+o"],
-    "command":"auto_order"}
+    {
+        "keys": ["super+shift+o"],
+        "command":"auto_order",
+        "args":{
+            "add_cancel": 1
+        }
+    }
 ]
