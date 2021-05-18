@@ -3,13 +3,13 @@ import sublime_plugin
 from string import Template
 import datetime
 
-def gen_order(expr, add_cancel=False):
+def gen_order(expr, add_cancel_at=False, time_frame="D"):
     exp = [i.upper() for i in expr.split(" ") if i.strip()]
     ticker=exp[0]
     size=exp[1]
 
     time=""
-    if add_cancel:
+    if add_cancel_at:
         next_day = datetime.date.today()
         wd=next_day.isoweekday()
         if wd == 5:
@@ -20,14 +20,14 @@ def gen_order(expr, add_cancel=False):
             delta = 1
         next_day += datetime.timedelta(days=delta)
         cancel_at=next_day.strftime("%m/%d/%y") + " 06:36:00"
-        time="CANCEL AT "+cancel_at
+        time=" CANCEL AT "+cancel_at
 
     if int(size) < 0:
         # if yesterday is an inside day, use the day before yesterday, if the day before yesterday is an inside day as well, use the previous day(low[3]), and we stop there.
-        t=Template("SELL $count $ticker MKT GTC WHEN $ticker STUDY 'close < (if(low[1]>=low[2] and high[1]<=high[2], if(low[2] >=low[3] and high[2]<=high[3], low[3], low[2]), low[1]) * 0.995);D' IS TRUE")
+        t=Template("SELL $count $ticker MKT GTC WHEN $ticker STUDY 'close < (if(low[1]>=low[2] and high[1]<=high[2], if(low[2] >=low[3] and high[2]<=high[3], low[3], low[2]), low[1]) * 0.995);$time_frame' IS TRUE")
     else:
-        t=Template("BUY $count $ticker MKT $time WHEN $ticker STUDY 'open >= (If(open[1]>close[1],open[1],close[1]) * 0.9995);D' IS TRUE")
-    return t.substitute(ticker=ticker, count=size, time=time)
+        t=Template("BUY $count $ticker MKT$time WHEN $ticker STUDY 'open >= (Max(open[1],close[1]) * 0.9995);$time_frame' IS TRUE")
+    return t.substitute(ticker=ticker, count=size, time=time, time_frame=time_frame)
 
 '''
 order input, samples:
@@ -92,7 +92,7 @@ class MyOrderCommand(sublime_plugin.TextCommand):
 Plugin to generate thinkorswim order template from current line, same as above but without input handler
 '''
 class AutoOrderCommand(sublime_plugin.TextCommand):
-    def run(self,edit, add_cancel=True):
+    def run(self,edit, add_cancel_at=True,time_frame="D"):
         s = self.view.sel()
         for i in range(len(s)):            
             lr = self.view.line(s[i])
@@ -100,7 +100,7 @@ class AutoOrderCommand(sublime_plugin.TextCommand):
             exp = [i for i in data.split(" ") if i.strip()]
 
             if len(exp) == 2:
-                content=gen_order(data,add_cancel)
+                content=gen_order(data,add_cancel_at,time_frame)
                 self.view.replace(edit, lr, content)
                 sublime.set_clipboard(content)
                 self.view.set_status("tos","Order copied to clipboard!")
