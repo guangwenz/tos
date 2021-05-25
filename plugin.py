@@ -24,9 +24,9 @@ def gen_order(expr, add_cancel_at=False, time_frame="D"):
 
     if int(size) < 0:
         # if yesterday is an inside day, use the day before yesterday, if the day before yesterday is an inside day as well, use the previous day(low[3]), and we stop there.
-        t=Template("SELL $count $ticker MKT GTC WHEN $ticker STUDY 'close < (if(low[1]>=low[2] and high[1]<=high[2], if(low[2] >=low[3] and high[2]<=high[3], low[3], low[2]), low[1]) * 0.995);$time_frame' IS TRUE")
+        t=Template("SELL $count $ticker MKT GTC WHEN $ticker STUDY 'close < Lowest(low[1], 2) * 0.995;$time_frame' IS TRUE")
     else:
-        t=Template("BUY $count $ticker MKT$time WHEN $ticker STUDY 'open >= (Max(open[1],close[1]) * 0.9995);$time_frame' IS TRUE")
+        t=Template("BUY $count $ticker MKT$time WHEN $ticker STUDY 'open >= (Highest(high[1],2) * 0.9995);$time_frame' IS TRUE")
     return t.substitute(ticker=ticker, count=size, time=time, time_frame=time_frame)
 
 '''
