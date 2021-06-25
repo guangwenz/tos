@@ -8,25 +8,25 @@ def gen_order(expr, add_cancel_at=False, time_frame="D"):
     ticker=exp[0]
     size=exp[1]
 
-    time=""
+    next_day = datetime.date.today()
+    wd=next_day.isoweekday()
+    if wd == 5:
+        delta = 3
+    elif wd == 6:
+        delta = 2
+    else:
+        delta = 1
+    next_day += datetime.timedelta(days=delta)
+    time = " SUBMIT AT " + next_day.strftime("%m/%d/%y") + " 06:30:30"
+    cancel_time=""
     if add_cancel_at:
-        next_day = datetime.date.today()
-        wd=next_day.isoweekday()
-        if wd == 5:
-            delta = 3
-        elif wd == 6:
-            delta = 2
-        else:
-            delta = 1
-        next_day += datetime.timedelta(days=delta)
-        cancel_at=next_day.strftime("%m/%d/%y") + " 06:36:00"
-        time=" CANCEL AT "+cancel_at
+        time=time+" CANCEL AT "+next_day.strftime("%m/%d/%y") + " 06:36:00"
 
     if int(size) < 0:
         # if yesterday is an inside day, use the day before yesterday, if the day before yesterday is an inside day as well, use the previous day(low[3]), and we stop there.
         t=Template("SELL $count $ticker MKT GTC WHEN $ticker STUDY 'close < Lowest(low[1], 2) * 0.995;$time_frame' IS TRUE")
     else:
-        t=Template("BUY $count $ticker MKT$time WHEN $ticker STUDY 'open >= (Highest(high[1],2) * 0.9995);$time_frame' IS TRUE")
+        t=Template("BUY $count $ticker MKT$time WHEN $ticker STUDY 'open >= (Max(open[1],close[1]) * 0.9995);$time_frame' IS TRUE\nSELL -$count $ticker STP TRG-2.00% GTC TRG BY")
     return t.substitute(ticker=ticker, count=size, time=time, time_frame=time_frame)
 
 '''
