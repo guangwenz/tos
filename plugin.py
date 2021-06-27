@@ -17,16 +17,17 @@ def gen_order(expr, add_cancel_at=False, time_frame="D"):
     else:
         delta = 1
     next_day += datetime.timedelta(days=delta)
-    time = " SUBMIT AT " + next_day.strftime("%m/%d/%y") + " 06:30:30"
+    # time = " SUBMIT AT " + next_day.strftime("%m/%d/%y") + " 06:30:30"
+    time = ""
     cancel_time=""
     if add_cancel_at:
         time=time+" CANCEL AT "+next_day.strftime("%m/%d/%y") + " 06:36:00"
 
     if int(size) < 0:
         # if yesterday is an inside day, use the day before yesterday, if the day before yesterday is an inside day as well, use the previous day(low[3]), and we stop there.
-        t=Template("SELL $count $ticker MKT GTC WHEN $ticker STUDY 'close < Lowest(low[1], 2) * 0.995;$time_frame' IS TRUE")
+        t=Template("SELL $count $ticker MKT GTC WHEN $ticker STUDY 'mymadistance()<-3;$time_frame' IS TRUE")
     else:
-        t=Template("BUY $count $ticker MKT$time WHEN $ticker STUDY 'open >= (Max(open[1],close[1]) * 0.9995);$time_frame' IS TRUE\nSELL -$count $ticker STP TRG-2.00% GTC TRG BY")
+        t=Template("BUY $count $ticker MKT GTC $time WHEN $ticker STUDY 'mymadistance()<1;$time_frame' IS TRUE\nSELL -$count $ticker MKT GTC WHEN $ticker STUDY 'mymadistance()<-1;$time_frame' IS TRUE")
     return t.substitute(ticker=ticker, count=size, time=time, time_frame=time_frame)
 
 '''
@@ -92,7 +93,7 @@ class MyOrderCommand(sublime_plugin.TextCommand):
 Plugin to generate thinkorswim order template from current line, same as above but without input handler
 '''
 class AutoOrderCommand(sublime_plugin.TextCommand):
-    def run(self,edit, add_cancel_at=True,time_frame="D"):
+    def run(self,edit, add_cancel_at=False,time_frame="D"):
         s = self.view.sel()
         for i in range(len(s)):            
             lr = self.view.line(s[i])

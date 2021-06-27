@@ -3,7 +3,7 @@
         "keys": ["super+shift+o"],
         "command":"auto_order",
         "args":{
-            "add_cancel_at": 1
+            "add_cancel_at": 0
         }
     }
     // {
