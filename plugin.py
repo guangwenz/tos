@@ -17,17 +17,22 @@ def gen_order(expr, add_cancel_at=False, time_frame="D"):
     else:
         delta = 1
     next_day += datetime.timedelta(days=delta)
-    # time = " SUBMIT AT " + next_day.strftime("%m/%d/%y") + " 06:30:30"
-    time = ""
+    time = " SUBMIT AT " + next_day.strftime("%m/%d/%y") + " 06:30:30"
+    # time = ""
     cancel_time=""
     if add_cancel_at:
         time=time+" CANCEL AT "+next_day.strftime("%m/%d/%y") + " 06:36:00"
 
     if int(size) < 0:
         # if yesterday is an inside day, use the day before yesterday, if the day before yesterday is an inside day as well, use the previous day(low[3]), and we stop there.
-        t=Template("SELL $count $ticker MKT GTC WHEN $ticker STUDY 'mymadistance()<-3;$time_frame' IS TRUE")
+        t=Template("SELL $count $ticker MKT GTC WHEN $ticker STUDY 'close < expaverage(close,20)*(1-0.03);$time_frame' IS TRUE")
     else:
-        t=Template("BUY $count $ticker MKT GTC $time WHEN $ticker STUDY 'mymadistance()<1;$time_frame' IS TRUE\nSELL -$count $ticker MKT GTC WHEN $ticker STUDY 'mymadistance()<-1;$time_frame' IS TRUE")
+        t=Template(
+"""BUY $count $ticker MKT$time WHEN $ticker STUDY 'open >= (Max(open[1],close[1]) * 0.9995);$time_frame' IS TRUE
+SELL -$count $ticker STP TRG-3.00% GTC TRG BY
+
+BUY $count $ticker MKT GTC WHEN $ticker STUDY 'close < expaverage(close,20)*1.01;$time_frame' IS TRUE
+SELL -$count $ticker MKT GTC WHEN $ticker STUDY 'close < expaverage(close,20)*(1-0.01);$time_frame' IS TRUE""")
     return t.substitute(ticker=ticker, count=size, time=time, time_frame=time_frame)
 
 '''
