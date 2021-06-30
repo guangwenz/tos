@@ -4,6 +4,17 @@ from string import Template
 import datetime
 
 def gen_order(expr, add_cancel_at=False, time_frame="D"):
+    """
+    Generate buy and sell orders
+
+    Examples:
+    TSLA 1 -> Buy TSLA With OpenInWick setup
+    TSLA 1 700 -> Buy TSLA wiht OpenInWick and Stop price $700
+
+    TSLA -1 -> Sell TSLA when it closes 3% below EMA 20
+    TSLA -1 13 -> Sell TSLA OCO when it closes 3% below EMA 20 or 13% above its 10 week EMA
+    TSLA -1 13 690 -> Sell TSLA OCO at stop loss price 690 or 13% above its 10 week EMA
+    """
     exp = [i.upper() for i in expr.split(" ") if i.strip()]
     ticker=exp[0]
     size=exp[1]
@@ -23,15 +34,33 @@ def gen_order(expr, add_cancel_at=False, time_frame="D"):
     if add_cancel_at:
         time=time+" CANCEL AT "+next_day.strftime("%m/%d/%y") + " 06:36:00"
 
-    if int(size) < 0:
-        # if yesterday is an inside day, use the day before yesterday, if the day before yesterday is an inside day as well, use the previous day(low[3]), and we stop there.
-        t=Template("SELL $count $ticker MKT GTC WHEN $ticker STUDY 'close < expaverage(close,20)*(1-0.03);$time_frame' IS TRUE")
+    if int(size) < 0:            
+        if len(exp)==4:
+            up=exp[2]
+            stp=exp[3]
+            return (
+                f"SELL {size} {ticker} MKT GTC OCO WHEN {ticker} STUDY 'close >= ExpAverage(high, 10)*1.{up};W' IS TRUE\n"
+                f"SELL {size} {ticker} STP {stp} GTC OCO"
+                )
+        elif len(exp)==3:
+            up=exp[2]
+            return (
+                f"SELL {size} {ticker} MKT GTC OCO WHEN {ticker} STUDY 'close >= ExpAverage(high, 10)*1.{up};W' IS TRUE\n"
+                f"SELL {size} {ticker} MKT GTC OCO WHEN {ticker} STUDY 'close < ExpAverage(close,20)*(1-0.03);{time_frame}' IS TRUE"
+                )
+        else:
+            return f"SELL {size} {ticker} MKT GTC TRG BY OCO WHEN STUDY 'close < ExpAverage(close, 2)*(1-0.03);{time_frame}' IS TRUE"
+        # t=Template("SELL $count $ticker MKT GTC WHEN $ticker STUDY 'close < expaverage(close,20)*(1-0.03);$time_frame' IS TRUE")
     else:
-        t=Template(
-"""BUY $count $ticker MKT$time WHEN $ticker STUDY 'open >= (Max(open[1],close[1]) * 0.9995);$time_frame' IS TRUE
-SELL -$count $ticker MKT GTC TRG BY OCO WHEN $ticker STUDY 'close >= ExpAverage(high,10)*1.13;W' IS TRUE
-SELL -$count $ticker STP TRG-2.00% GTC TRG BY OCO""")
-    return t.substitute(ticker=ticker, count=size, time=time, time_frame=time_frame)
+        oco=(
+            # f"SELL -{size} {ticker} MKT GTC TRG BY OCO WHEN {ticker} STUDY 'close >= ExpAverage(high,10)*1.13;W' IS TRUE\n"
+            f"SELL -{size} {ticker} STP TRG-2.00% GTC TRG BY OCO"
+            )
+        if len(exp)==3:
+            stp=exp[2]
+            return f"BUY {size} {ticker} STP {stp}{time} WHEN {ticker} STUDY 'open >= (Max(open[1],close[1]) * 0.9995);{time_frame}' IS TRUE\n{oco}"
+        else:
+            return f"BUY {size} {ticker} MKT{time} WHEN {ticker} STUDY 'open >= (Max(open[1],close[1]) * 0.9995);{time_frame}' IS TRUE\n{oco}"
 
 '''
 order input, samples:
@@ -103,7 +132,7 @@ class AutoOrderCommand(sublime_plugin.TextCommand):
             data = self.view.substr(lr)
             exp = [i for i in data.split(" ") if i.strip()]
 
-            if len(exp) > 2:
+            if len(exp) > 1:
                 content=gen_order(data,add_cancel_at,time_frame)
                 self.view.replace(edit, lr, content)
                 sublime.set_clipboard(content)
