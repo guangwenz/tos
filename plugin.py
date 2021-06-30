@@ -17,7 +17,7 @@ def gen_order(expr, add_cancel_at=False, time_frame="D"):
     else:
         delta = 1
     next_day += datetime.timedelta(days=delta)
-    time = " SUBMIT AT " + next_day.strftime("%m/%d/%y") + " 06:30:30"
+    time = " SUBMIT AT " + next_day.strftime("%m/%d/%y") + " 06:30:20"
     # time = ""
     cancel_time=""
     if add_cancel_at:
@@ -29,10 +29,8 @@ def gen_order(expr, add_cancel_at=False, time_frame="D"):
     else:
         t=Template(
 """BUY $count $ticker MKT$time WHEN $ticker STUDY 'open >= (Max(open[1],close[1]) * 0.9995);$time_frame' IS TRUE
-SELL -$count $ticker STP TRG-3.00% GTC TRG BY
-
-BUY $count $ticker MKT GTC WHEN $ticker STUDY 'close < expaverage(close,20)*1.01;$time_frame' IS TRUE
-SELL -$count $ticker MKT GTC WHEN $ticker STUDY 'close < expaverage(close,20)*(1-0.01);$time_frame' IS TRUE""")
+SELL -$count $ticker MKT GTC TRG BY OCO WHEN $ticker STUDY 'close >= ExpAverage(high,10)*1.13;W' IS TRUE
+SELL -$count $ticker STP TRG-2.00% GTC TRG BY OCO""")
     return t.substitute(ticker=ticker, count=size, time=time, time_frame=time_frame)
 
 '''
@@ -105,7 +103,7 @@ class AutoOrderCommand(sublime_plugin.TextCommand):
             data = self.view.substr(lr)
             exp = [i for i in data.split(" ") if i.strip()]
 
-            if len(exp) == 2:
+            if len(exp) > 2:
                 content=gen_order(data,add_cancel_at,time_frame)
                 self.view.replace(edit, lr, content)
                 sublime.set_clipboard(content)
