@@ -28,11 +28,11 @@ def gen_order(expr, add_cancel_at=False, time_frame="D"):
     else:
         delta = 1
     next_day += datetime.timedelta(days=delta)
-    time = " SUBMIT AT " + next_day.strftime("%m/%d/%y") + " 06:30:20"
-    # time = ""
+    order_time = " SUBMIT AT " + next_day.strftime("%m/%d/%y") + " 06:30:20"
+    # order_time = ""
     cancel_time=""
     if add_cancel_at:
-        time=time+" CANCEL AT "+next_day.strftime("%m/%d/%y") + " 06:36:00"
+        order_time=order_time+" CANCEL AT "+next_day.strftime("%m/%d/%y") + " 06:36:00"
 
     if int(size) < 0:            
         if len(exp)==4:
@@ -54,13 +54,13 @@ def gen_order(expr, add_cancel_at=False, time_frame="D"):
     else:
         oco=(
             # f"SELL -{size} {ticker} MKT GTC TRG BY OCO WHEN {ticker} STUDY 'close >= ExpAverage(high,10)*1.13;W' IS TRUE\n"
-            f"SELL -{size} {ticker} STP TRG-2.00% GTC TRG BY OCO"
+            f"SELL -{size} {ticker} STP TRG-2.00% GTC"
             )
         if len(exp)==3:
             stp=exp[2]
-            return f"BUY {size} {ticker} STP {stp}{time} WHEN {ticker} STUDY 'open >= (Max(open[1],close[1]) * 0.9995);{time_frame}' IS TRUE\n{oco}"
+            return f"BUY {size} {ticker} STP {stp}{order_time} WHEN {ticker} STUDY 'open >= (Max(open[1],close[1]) * 0.9995);{time_frame}' IS TRUE\n{oco}"
         else:
-            return f"BUY {size} {ticker} MKT{time} WHEN {ticker} STUDY 'open >= (Max(open[1],close[1]) * 0.9995);{time_frame}' IS TRUE\n{oco}"
+            return f"BUY {size} {ticker} MKT{order_time} WHEN {ticker} STUDY 'open >= (Max(open[1],close[1]) * 0.9995);{time_frame}' IS TRUE\n{oco}"
 
 '''
 order input, samples:
