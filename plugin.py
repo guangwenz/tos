@@ -44,12 +44,14 @@ def gen_order(expr, add_cancel_at=False, time_frame="D"):
                 )
         elif len(exp)==3:
             up=exp[2]
+            if up.startswith("$") or '.' in up:
+                return f"SELL {size} {ticker} STP {up.replace('$','')} GTC" #sell at stop price
             return (
-                f"SELL {size} {ticker} MKT GTC OCO WHEN {ticker} STUDY 'close >= ExpAverage(high, 10)*1.{up};W' IS TRUE\n"
-                f"SELL {size} {ticker} MKT GTC OCO WHEN {ticker} STUDY 'close < ExpAverage(close,20)*(1-0.03);{time_frame}' IS TRUE"
+                f"SELL {size} {ticker} MKT GTC OCO WHEN {ticker} STUDY 'close >= ExpAverage(high, 10)*1.{up};W' IS TRUE\n" #up% above 10EMA Weekly
+                f"SELL {size} {ticker} MKT GTC OCO WHEN {ticker} STUDY 'close < ExpAverage(close,20)*(1-0.03);{time_frame}' IS TRUE" #3% below 20EMA
                 )
         else:
-            return f"SELL {size} {ticker} MKT GTC TRG BY OCO WHEN STUDY 'close < ExpAverage(close, 2)*(1-0.03);{time_frame}' IS TRUE"
+            return f"SELL {size} {ticker} MKT GTC TRG BY OCO WHEN STUDY 'close < ExpAverage(close, 20)*(1-0.03);{time_frame}' IS TRUE"
         # t=Template("SELL $count $ticker MKT GTC WHEN $ticker STUDY 'close < expaverage(close,20)*(1-0.03);$time_frame' IS TRUE")
     else:
         oco=(
