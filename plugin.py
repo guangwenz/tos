@@ -28,7 +28,7 @@ def gen_order(expr, add_cancel_at=False, time_frame="D"):
     else:
         delta = 1
     next_day += datetime.timedelta(days=delta)
-    order_time = " SUBMIT AT " + next_day.strftime("%m/%d/%y") + " 06:30:20"
+    order_time = " SUBMIT AT " + next_day.strftime("%m/%d/%y") + " 06:31:00"
     # order_time = ""
     cancel_time=""
     if add_cancel_at:
@@ -51,18 +51,16 @@ def gen_order(expr, add_cancel_at=False, time_frame="D"):
                 f"SELL {size} {ticker} MKT GTC OCO WHEN {ticker} STUDY 'close < ExpAverage(close,20)*(1-0.03);{time_frame}' IS TRUE" #3% below 20EMA
                 )
         else:
-            return f"SELL {size} {ticker} MKT GTC TRG BY OCO WHEN STUDY 'close < ExpAverage(close, 20)*(1-0.03);{time_frame}' IS TRUE"
-        # t=Template("SELL $count $ticker MKT GTC WHEN $ticker STUDY 'close < expaverage(close,20)*(1-0.03);$time_frame' IS TRUE")
+            return f"SELL {size} {ticker} MKT GTC WHEN STUDY 'close < ExpAverage(close, 20)*(1-0.03);{time_frame}' IS TRUE"        
     else:
-        oco=(
-            # f"SELL -{size} {ticker} MKT GTC TRG BY OCO WHEN {ticker} STUDY 'close >= ExpAverage(high,10)*1.13;W' IS TRUE\n"
-            f"SELL -{size} {ticker} STP TRG-2.00% GTC"
+        oco=(            
+            f"SELL -{size} {ticker} STP TRG-2.5% GTC"
             )
         if len(exp)==3:
             stp=exp[2]
-            return f"BUY {size} {ticker} STP {stp}{order_time} WHEN {ticker} STUDY 'open >= (Max(open[1],close[1]) * 0.9995);{time_frame}' IS TRUE\n{oco}"
+            return f"BUY {size} {ticker} MKT{order_time} WHEN {ticker} STUDY 'close >= {stp} && close > open && low >= (low[1]+(high[1]-low[1])/2);{time_frame}' IS TRUE\n{oco}"
         else:
-            return f"BUY {size} {ticker} MKT{order_time} WHEN {ticker} STUDY 'open >= (Max(open[1],close[1]) * 0.9995);{time_frame}' IS TRUE\n{oco}"
+            return f"BUY {size} {ticker} MKT{order_time} WHEN {ticker} STUDY 'close > open && open >= (Max(open[1],close[1]) * 0.9995);{time_frame}' IS TRUE\n{oco}"
 
 '''
 order input, samples:
